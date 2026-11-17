@@ -16,13 +16,14 @@ on:
       - "sonar-project.properties"
       - ".github/workflows/pipeline.yaml"
 
-permissions:
-  contents: read
-  pull-requests: read
+permissions: {} # nothing by default; each job asks for only what it needs
 
 jobs:
   checks:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -59,19 +60,23 @@ jobs:
   build:
     needs: checks
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - name: Compute the image tag
         id: tag
         run: echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
       - name: Build the backend image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: backend
           load: true
@@ -80,7 +85,7 @@ jobs:
           cache-to: type=gha,scope=backend,mode=max
 
       - name: Build the frontend image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: frontend
           load: true
@@ -89,7 +94,7 @@ jobs:
           cache-to: type=gha,scope=frontend,mode=max
 
       - name: Scan backend
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
         with:
           image-ref: fixboard-backend:${{ steps.tag.outputs.tag }}
           severity: HIGH,CRITICAL
@@ -97,7 +102,7 @@ jobs:
           exit-code: '1'
 
       - name: Scan frontend
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
         with:
           image-ref: fixboard-frontend:${{ steps.tag.outputs.tag }}
           severity: HIGH,CRITICAL
@@ -106,13 +111,13 @@ jobs:
 
       - name: Save the scanned images
         if: github.event_name == 'push'
-        run: |
-          TAG=${{ steps.tag.outputs.tag }}
-          docker save fixboard-backend:$TAG fixboard-frontend:$TAG -o images.tar
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: docker save "fixboard-backend:$TAG" "fixboard-frontend:$TAG" -o images.tar
 
       - name: Keep the images for the release job
         if: github.event_name == 'push'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: images
           path: images.tar
