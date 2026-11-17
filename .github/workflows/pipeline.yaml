@@ -7,14 +7,14 @@ on:
       - "backend/**"
       - "frontend/**"
       - "sonar-project.properties"
-      - ".github/workflows/pipeline.yml"
+      - ".github/workflows/pipeline.yaml"
   push:
     branches: [main]
     paths:
       - "backend/**"
       - "frontend/**"
       - "sonar-project.properties"
-      - ".github/workflows/pipeline.yml"
+      - ".github/workflows/pipeline.yaml"
 
 permissions:
   contents: read
@@ -24,33 +24,34 @@ jobs:
   checks:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          fetch-depth: 0
+          fetch-depth: 0 # full history needed by gitleaks and Sonar blame
+          persist-credentials: false
 
       - name: Scan the history for secrets
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 20
 
       - name: Backend unit tests
         working-directory: backend
         run: |
-          npm ci
+          npm ci --ignore-scripts
           npm test
           sed -i 's|^SF:|SF:backend/|' coverage/lcov.info
 
       - name: Frontend lint
         working-directory: frontend
         run: |
-          npm ci
+          npm ci --ignore-scripts
           npm run lint
 
       - name: SonarCloud analysis
-        uses: SonarSource/sonarqube-scan-action@v5
+        uses: SonarSource/sonarqube-scan-action@2f77a1ec69fb1d595b06f35ab27e97605bdef703 # v5.3.2
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
