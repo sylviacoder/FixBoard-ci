@@ -177,3 +177,39 @@ jobs:
           else
             echo "Image tags already up to date"
           fi
+  verify:
+    needs: [build, release]
+    runs-on: ubuntu-latest
+    permissions: {} # talks to Argo CD and the live site only, never to GitHub
+    env:
+      ARGOCD_SERVER: ${{ vars.ARGOCD_SERVER }}
+      ARGOCD_VERSION: v3.6.1
+      ARGOCD_SHA256: 46d2fc941071f0a0c36326a67a431d34b1479e1a24737f7b367abc93968beadc
+    steps:
+      - name: Install the Argo CD CLI (pinned version, checksum verified)
+        run: |
+          curl -fsSL -o argocd \
+            "https://github.com/argoproj/argo-cd/releases/download/${ARGOCD_VERSION}/argocd-linux-amd64"
+          echo "${ARGOCD_SHA256}  argocd" | sha256sum -c -
+          sudo install -m 755 argocd /usr/local/bin/argocd
+ 
+      - name: Wait for Argo CD to deploy the release
+        env:
+          ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
+          TAG: ${{ needs.build.outputs.tag }}
+        run: |
+          argocd app get fixboard --refresh --grpc-web > /dev/null
+          argocd app wait fixboard --sync --health --timeout 300 --grpc-web
+          # Make sure the healthy app is running THIS release, not the previous one
+          IMAGES=$(argocd app get fixboard --grpc-web -o json | jq -r '.status.summary.images[]')
+          echo "$IMAGES"
+          echo "$IMAGES" | grep -q "/backend:${TAG}$"
+          echo "$IMAGES" | grep -q "/frontend:${TAG}$"
+ 
+      - name: Smoke test the live site
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors "${APP_URL}/" > /dev/null
+          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors "${APP_URL}/api/health"
+ 
