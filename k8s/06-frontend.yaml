@@ -17,7 +17,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: frontend
-          image: 591316257645.dkr.ecr.us-east-1.amazonaws.com/fixboard/frontend:1.0.0
+          image: 591316257645.dkr.ecr.us-east-1.amazonaws.com/fixboard/frontend:3e1fed3
           ports:
             - containerPort: 80
           env:
