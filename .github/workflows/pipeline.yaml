@@ -188,7 +188,7 @@ jobs:
     steps:
       - name: Install the Argo CD CLI (pinned version, checksum verified)
         run: |
-          curl -fsSL -o argocd \
+          curl --proto '=https' --tlsv1.2 -fsSL -o argocd \
             "https://github.com/argoproj/argo-cd/releases/download/${ARGOCD_VERSION}/argocd-linux-amd64"
           echo "${ARGOCD_SHA256}  argocd" | sha256sum -c -
           sudo install -m 755 argocd /usr/local/bin/argocd
